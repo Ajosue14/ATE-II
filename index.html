@@ -1,23 +1,23 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8"/>
-  <title>Mapa Tiendas Sigma</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mapa Tiendas Sigma</title>
 
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Leaflet -->
+<link
+  rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/let@1.9.4/dist/cript>
 
-  <!-- PapaParse -->
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<!-- PapaParse -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 
-  <style>
-    body { margin:0; font-family: system-ui, sans-serif; }
-    #map { height:100vh; }
-    .popup h3 { margin:0 0 4px; font-size:14px; }
-    .popup div { font-size:12px; margin:2px 0; }
-  </style>
+<style>
+  body { margin: 0; }
+  #map { height: 100vh; }
+</style>
 </head>
 
 <body>
@@ -26,22 +26,19 @@
 <script>
 (() => {
 
-  /* ================= CONFIG ================= */
-  const CSV_URL = "https://raw.githubusercontent.com/sigmaperu/MapInfo/main/Catalogo%20Sigma.csv";
+  const CSV_URL =
+    "https://raw.githubusercontent.com/sigmaperu/MapInfo/main/Catalogo%20Sigma.csv";
 
-  /* ================= MAP ================= */
-  const map = L.map("map", { preferCanvas: true })
-    .setView([-12.0464, -77.0428], 11);
+  // ===== MAPA =====
+  const map = L.map("map").setView([-12.0464, -77.0428], 11);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "© OpenStreetMap"
   }).addTo(map);
 
-  const markersLayer = L.layerGroup().addTo(map);
+  const layer = L.layerGroup().addTo(map);
 
-  /* ================= UTILS ================= */
-  function toNumber(v){
-    if(!v) return NaN;
+  function num(v){
     const n = parseFloat(String(v).replace(",", "."));
     return Number.isFinite(n) ? n : NaN;
   }
@@ -50,82 +47,46 @@
     return (v ?? "").toString().trim();
   }
 
-  function colorByCanal(canal){
-    const c = canal.toUpperCase();
-    if(c.includes("DET")) return "#2563eb";       // azul
-    if(c.includes("FOSE")) return "#16a34a";     // verde
-    if(c.includes("MES")) return "#eab308";      // amarillo
-    return "#7c3aed";                             // morado default
-  }
-
-  /* ================= LOAD CSV ================= */
   Papa.parse(CSV_URL, {
     download: true,
     skipEmptyLines: true,
     complete: res => {
-      const rows = res.data;
       let count = 0;
 
-      rows.slice(1).forEach(row => {
-        /*
-          ===== MAPEO REAL DE TU CSV =====
-          0  = Código cliente
-          7  = Nombre
-          16 = Municipio/Distrito
-          21 = Canal
-          24 = Giro
-          28 = Latitud
-          29 = Longitud
-          46 = Oficina
-          último = Estado
-        */
-        const lat = toNumber(row[28]);
-        const lon = toNumber(row[29]);
-        if(!Number.isFinite(lat) || !Number.isFinite(lon)) return;
+      res.data.slice(1).forEach(row => {
+        const lat = num(row[28]);
+        const lon = num(row[29]);
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
 
-        const codigo   = clean(row[0]);
-        const nombre   = clean(row[7]);
-        const distrito = clean(row[16]);
-        const canal    = clean(row[21]);
-        const giro     = clean(row[24]);
-        const oficina  = clean(row[46]);
-        const estado   = clean(row[row.length - 1]);
-
-        // descartar PAGADOR sin tienda
-        if(canal.toUpperCase().includes("PAGADOR")) return;
+        const nombre = clean(row[7]);
+        const canal  = clean(row[21]);
+        const oficina = clean(row[46]);
+        const estado = clean(row[row.length - 1]);
 
         const marker = L.circleMarker([lat, lon], {
-          radius: 6,
-          weight: 1,
-          color: "#111",
-          fillColor: colorByCanal(canal),
-          fillOpacity: 0.9
-        });
+          radius: 5,
+          color: "#000",
+          fillColor: "#2563eb",
+          fillOpacity: 0.85
+        }).bindPopup(`
+          <strong>${nombre}</strong><br>
+          Canal: ${canal}<br>
+          Oficina: ${oficina}<br>
+          Estado: ${estado}<br><br>
+          <a target="_blank"
+             href="https://www.google.com/maps?q=${lat    `);
 
-        marker.bindPopup(`
-          <div class="popup">
-            <h3>${codigo}</h3>
-            <div><strong>${nombre}</strong></div>
-            <div>Canal: ${canal}</div>
-            <div>Giro: ${giro}</div>
-            <div>Distrito: ${distrito}</div>
-            <div>Oficina: ${oficina}</div>
-            <div>Estado: ${estado}</div>
-            <hr/>
-            <a target="_blank"
-              href="https://       marker.addTo(markersLayer);
+        marker.addTo(layer);
         count++;
       });
 
-      if(markersLayer.getBounds().isValid()){
-        map.fitBounds(markersLayer.getBounds().pad(0.08));
+      console.log("Tiendas dibujadas:", count);
+      if (layer.getBounds().isValid()) {
+        map.fitBounds(layer.getBounds().pad(0.1));
       }
-
-      console.log("Tiendas mapeadas:", count);
     },
     error: err => {
-      alert("Error cargando CSV");
-      console.error(err);
+      console.error("Error CSV", err);
     }
   });
 
